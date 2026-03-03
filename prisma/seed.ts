@@ -97,10 +97,10 @@ async function main() {
       },
     },
     fields: [
-      { key: 'price', label: 'Unit Price ($)', type: 'number', min: 10, max: 120, description: 'Set customer-facing unit price.', impact: 'Higher price improves margin but usually lowers demand. Lower price can increase demand but squeeze margin.' },
-      { key: 'staffDelta', label: 'Net Staff Change', type: 'number', min: -5, max: 10, description: 'How many staff to hire (positive) or reduce (negative).', impact: 'More staff increases capacity and payroll. Too few staff can constrain output and growth.' },
-      { key: 'machinePurchase', label: 'New Machines to Buy', type: 'number', min: 0, max: 2, description: 'How many additional production machines to buy this month.', impact: 'Machines raise production capacity but require upfront capital expense.' },
-      { key: 'marketing', label: 'Marketing Spend ($)', type: 'number', min: 0, max: 30000, description: 'Monthly demand generation spend.', impact: 'Can increase demand and brand strength, but reduces short-term profit.' },
+      { key: 'price', label: 'Unit Price ($)', type: 'number', min: 10, max: 120, recommendedMin: 35, recommendedMax: 85, description: 'Set customer-facing unit price.', impact: 'Higher price improves margin but usually lowers demand. Lower price can increase demand but squeeze margin.' },
+      { key: 'staffDelta', label: 'Net Staff Change', type: 'number', min: -5, max: 10, recommendedMin: -3, recommendedMax: 6, description: 'How many staff to hire (positive) or reduce (negative).', impact: 'More staff increases capacity and payroll. Too few staff can constrain output and growth.' },
+      { key: 'machinePurchase', label: 'New Machines to Buy', type: 'number', min: 0, max: 2, recommendedMin: 0, recommendedMax: 1, description: 'How many additional production machines to buy this month.', impact: 'Machines raise production capacity but require upfront capital expense.' },
+      { key: 'marketing', label: 'Marketing Spend ($)', type: 'number', min: 0, max: 30000, recommendedMin: 500, recommendedMax: 12000, description: 'Monthly demand generation spend.', impact: 'Can increase demand and brand strength, but reduces short-term profit.' },
     ],
     scoring: { weights: { price: 1 } },
   }));

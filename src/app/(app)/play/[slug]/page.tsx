@@ -147,6 +147,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
         type: string;
         min?: number;
         max?: number;
+        recommendedMin?: number;
+        recommendedMax?: number;
         options?: { label: string; value: string }[];
         description?: string;
         impact?: string;
@@ -271,7 +273,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                   {currentDef.fields.map((f) => (
                     <div key={f.key} className="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
                       <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium">{f.label}</span>
+                        <span className="font-medium">{f.label}{(f.recommendedMin !== undefined && f.recommendedMax !== undefined) ? ` (${f.recommendedMin}–${f.recommendedMax})` : ""}</span>
                         {f.description && <span className="text-xs text-slate-600 dark:text-slate-300">{f.description}</span>}
                         {f.type === "select" ? (
                           <select
