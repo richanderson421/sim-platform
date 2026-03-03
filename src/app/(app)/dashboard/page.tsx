@@ -3,6 +3,8 @@ import { BarChart3, Users, Layers } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { StatusChip } from "@/components/status-chip";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const instances = await prisma.gameInstance.findMany({
     include: { enrollments: true, rounds: true },

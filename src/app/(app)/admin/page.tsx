@@ -60,6 +60,7 @@ async function createGame(formData: FormData) {
 
   await prisma.instanceSettings.create({ data: { gameInstanceId: instance.id } });
   revalidatePath("/admin");
+  revalidatePath("/dashboard");
   redirect(ownerEmail
     ? "/admin?toast=success&message=Game+created+and+linked+to+professor"
     : "/admin?toast=warning&message=Game+created+without+professor+assignment");
@@ -80,6 +81,7 @@ async function assignProfessor(formData: FormData) {
   await prisma.roleAssignment.create({ data: { userId: owner.id, instanceId, role: "OWNER", scope: "INSTANCE" } });
 
   revalidatePath("/admin");
+  revalidatePath("/dashboard");
   redirect("/admin?toast=success&message=Professor+assignment+updated");
 }
 
