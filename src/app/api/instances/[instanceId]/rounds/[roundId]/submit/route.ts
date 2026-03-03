@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ instan
 
     const previousState = (prevResult?.details as { state?: typeof initialBusinessState } | null)?.state ?? initialBusinessState;
     const sim = simulateBusinessTurn(round.number, previousState, payload as unknown as {
-      price: number; production: number; marketing: number; hiring: number; rAndD: number; borrow: number; repay: number;
+      price: number; staffDelta: number; machinePurchase: number; marketing: number;
     });
 
     await prisma.result.create({

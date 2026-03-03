@@ -65,6 +65,12 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
         background?: string;
         marketActors?: { name: string; description: string; likelyMove: string }[];
         focusQuestions?: string[];
+        metricHints?: {
+          marketAveragePrice?: number;
+          typicalCogsPerUnit?: number;
+          staffingProductivityRule?: string;
+          machineryProductivityRule?: string;
+        };
       };
       fields: {
         key: string;
@@ -83,6 +89,20 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
     : [];
 
   const latestState = (progress.at(-1)?.details as { state?: typeof initialBusinessState } | null)?.state ?? initialBusinessState;
+  const recentKpis = progress
+    .map((p) => (p.details as { kpis?: { unitsSold?: number; employees?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number } } | null)?.kpis)
+    .filter(Boolean) as { unitsSold?: number; employees?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number }[];
+
+  const avgProductivity = recentKpis.length
+    ? recentKpis.reduce((acc, k) => acc + ((k.unitsSold ?? 0) / Math.max(1, k.employees ?? 1)), 0) / recentKpis.length
+    : null;
+
+  const avgMachineOutput = recentKpis.length
+    ? recentKpis.reduce((acc, k) => acc + ((k.unitsSold ?? 0) / Math.max(1, k.machines ?? 1)), 0) / recentKpis.length
+    : null;
+
+  const latestMarketPrice = recentKpis.at(-1)?.avgMarketPrice;
+  const latestCogs = recentKpis.at(-1)?.cogsPerUnit;
 
   return (
     <main className="min-h-screen">
@@ -114,12 +134,25 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                           <li>Cash: <strong>${Math.round(latestState.cash).toLocaleString()}</strong></li>
                           <li>Inventory: <strong>{Math.round(latestState.inventory)}</strong> units</li>
                           <li>Employees: <strong>{Math.round(latestState.employees)}</strong></li>
+                          <li>Machines: <strong>{Math.round(latestState.machines)}</strong></li>
                           <li>Debt: <strong>${Math.round(latestState.debt).toLocaleString()}</strong></li>
                           <li>Brand Strength: <strong>{Math.round(latestState.brand)}</strong>/100</li>
                         </ul>
                       </div>
 
                       <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <p className="text-sm font-semibold">Reference Metrics</p>
+                        <ul className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                          <li>Current market avg price: <strong>${Math.round(latestMarketPrice ?? currentDef.briefing?.metricHints?.marketAveragePrice ?? 35)}</strong></li>
+                          <li>Typical COGS / unit: <strong>${Math.round(latestCogs ?? currentDef.briefing?.metricHints?.typicalCogsPerUnit ?? 12)}</strong></li>
+                          <li>Observed units per staff: <strong>{avgProductivity ? avgProductivity.toFixed(1) : "n/a"}</strong></li>
+                          <li>Observed units per machine: <strong>{avgMachineOutput ? avgMachineOutput.toFixed(1) : "n/a"}</strong></li>
+                        </ul>
+                        <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.staffingProductivityRule}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.machineryProductivityRule}</p>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:col-span-2">
                         <p className="text-sm font-semibold">Market Actors to Watch</p>
                         <ul className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-200">
                           {(currentDef.briefing?.marketActors ?? []).map((a) => (
