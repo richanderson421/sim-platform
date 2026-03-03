@@ -31,8 +31,19 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
   const nextEmployees = Math.max(2, previous.employees + d.staffDelta);
   const nextMachines = Math.max(1, previous.machines + d.machinePurchase);
 
-  // Simple production scaling curve: each employee contributes baseline, each machine adds throughput multiplier.
-  const capacity = Math.round(nextEmployees * 14 + nextMachines * 35);
+  // Staff modifies machinery output.
+  // Each machine has an ideal staffing level; under-staffing reduces efficiency sharply,
+  // over-staffing helps a bit but with diminishing returns unless machinery is added.
+  const staffPerMachineTarget = 3;
+  const idealStaff = nextMachines * staffPerMachineTarget;
+  const staffingRatio = nextEmployees / Math.max(1, idealStaff);
+
+  const machineBaseOutput = 42;
+  const underStaffMultiplier = Math.max(0.35, Math.min(1, staffingRatio));
+  const overStaffBonus = staffingRatio > 1 ? Math.min(0.25, (staffingRatio - 1) * 0.25) : 0;
+  const efficiencyMultiplier = staffingRatio <= 1 ? underStaffMultiplier : 1 + overStaffBonus;
+
+  const capacity = Math.round(nextMachines * machineBaseOutput * efficiencyMultiplier);
   const production = capacity;
 
   const priceDemandFactor = Math.max(0.6, Math.min(1.3, 1.04 - (d.price - 35) * 0.009));
@@ -78,9 +89,9 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
   if (d.price > avgMarketPrice) drivers.push(`Your price ($${d.price}) was above market average ($${avgMarketPrice}), which likely reduced unit demand.`);
   else drivers.push(`Your price ($${d.price}) was at/below market average ($${avgMarketPrice}), supporting demand.`);
 
-  if (d.machinePurchase > 0) drivers.push(`Machine purchases increased capacity but added $${Math.round(machineCapex).toLocaleString()} in capital costs this month.`);
-  if (d.staffDelta > 0) drivers.push(`Hiring increased capacity but raised payroll to $${Math.round(payrollCost).toLocaleString()}.`);
-  if (d.staffDelta < 0) drivers.push(`Staff reductions lowered payroll but may constrain future throughput.`);
+  if (d.machinePurchase > 0) drivers.push(`Machine purchases increased max throughput but added $${Math.round(machineCapex).toLocaleString()} in capital costs this month.`);
+  if (d.staffDelta > 0) drivers.push(`Hiring improved machine utilization (where understaffed) but raised payroll to $${Math.round(payrollCost).toLocaleString()}.`);
+  if (d.staffDelta < 0) drivers.push(`Staff reductions lowered payroll but may have reduced machine utilization and output efficiency.`);
   if (d.marketing > 0) drivers.push(`Marketing spend of $${Math.round(d.marketing).toLocaleString()} boosted demand/brand but reduced short-term profit.`);
   if (stockout) drivers.push(`Demand exceeded supply, causing stockouts and lost sales opportunities.`);
   if (!stockout && nextInventory > 220) drivers.push(`High ending inventory (${nextInventory} units) tied up working capital.`);
@@ -107,6 +118,9 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
       stockout,
       avgMarketPrice,
       capacity,
+      staffingRatio,
+      idealStaff,
+      efficiencyMultiplier,
     },
     state,
   };

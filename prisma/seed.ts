@@ -90,8 +90,8 @@ async function main() {
       metricHints: {
         marketAveragePrice: 35,
         typicalCogsPerUnit: 12,
-        staffingProductivityRule: 'Baseline 14 units per staff member per month',
-        machineryProductivityRule: 'Each machine adds roughly 35 units of monthly capacity',
+        staffingProductivityRule: 'Each machine is ideally staffed by ~3 team members; understaffing lowers machine efficiency.',
+        machineryProductivityRule: 'Each machine provides base throughput; extra staff above ideal gives smaller efficiency gains unless machines increase.',
       },
     },
     fields: [
