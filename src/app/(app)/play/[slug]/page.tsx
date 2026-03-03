@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { evaluateSubmission, validateSubmission } from "@/lib/engine/config-engine";
-import { initialBusinessState } from "@/lib/engine/business-sim";
+import { initialBusinessState, simulateBusinessTurn } from "@/lib/engine/business-sim";
 
 async function submitDecision(formData: FormData) {
   "use server";
@@ -39,12 +39,45 @@ async function submitDecision(formData: FormData) {
     create: { gameInstanceId: instance.id, roundId: openRound.id, userId: user.id, payload: jsonPayload },
   });
 
-  const score = evaluateSubmission(instance.gameTypeVersion.configJson, openRound.number, validated as Record<string, unknown>);
-  await prisma.result.upsert({
-    where: { id: `${openRound.id}:${user.id}` },
-    update: { score: score.score, details: score as Prisma.InputJsonValue },
-    create: { id: `${openRound.id}:${user.id}`, gameInstanceId: instance.id, roundId: openRound.id, userId: user.id, score: score.score, details: score as Prisma.InputJsonValue },
-  });
+  const config = instance.gameTypeVersion.configJson as { simulation?: string };
+
+  if (config.simulation === "business12") {
+    const prevRound = openRound.number > 1
+      ? await prisma.round.findFirst({ where: { gameInstanceId: instance.id, number: openRound.number - 1 } })
+      : null;
+
+    const prevResult = prevRound
+      ? await prisma.result.findFirst({ where: { roundId: prevRound.id, userId: user.id }, orderBy: { createdAt: "desc" } })
+      : null;
+
+    const previousState = (prevResult?.details as { state?: typeof initialBusinessState } | null)?.state ?? initialBusinessState;
+    const sim = simulateBusinessTurn(openRound.number, previousState, validated as unknown as {
+      price: number;
+      staffDelta: number;
+      machinePurchase: number;
+      marketing: number;
+    });
+
+    await prisma.result.upsert({
+      where: { id: `${openRound.id}:${user.id}` },
+      update: { score: sim.score, details: sim as unknown as Prisma.InputJsonValue },
+      create: {
+        id: `${openRound.id}:${user.id}`,
+        gameInstanceId: instance.id,
+        roundId: openRound.id,
+        userId: user.id,
+        score: sim.score,
+        details: sim as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } else {
+    const score = evaluateSubmission(instance.gameTypeVersion.configJson, openRound.number, validated as Record<string, unknown>);
+    await prisma.result.upsert({
+      where: { id: `${openRound.id}:${user.id}` },
+      update: { score: score.score, details: score as Prisma.InputJsonValue },
+      create: { id: `${openRound.id}:${user.id}`, gameInstanceId: instance.id, roundId: openRound.id, userId: user.id, score: score.score, details: score as Prisma.InputJsonValue },
+    });
+  }
 
   revalidatePath(`/play/${slug}`);
   redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
