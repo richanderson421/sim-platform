@@ -90,15 +90,17 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
 
   const latestState = (progress.at(-1)?.details as { state?: typeof initialBusinessState } | null)?.state ?? initialBusinessState;
   const recentKpis = progress
-    .map((p) => (p.details as { kpis?: { unitsSold?: number; employees?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number } } | null)?.kpis)
-    .filter(Boolean) as { unitsSold?: number; employees?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number }[];
+    .map((p) => (p.details as { kpis?: { unitsSold?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number; capacity?: number; efficiencyMultiplier?: number } } | null)?.kpis)
+    .filter(Boolean) as { unitsSold?: number; machines?: number; cogsPerUnit?: number; avgMarketPrice?: number; capacity?: number; efficiencyMultiplier?: number }[];
 
-  const avgProductivity = recentKpis.length
-    ? recentKpis.reduce((acc, k) => acc + ((k.unitsSold ?? 0) / Math.max(1, k.employees ?? 1)), 0) / recentKpis.length
-    : null;
-
-  const avgMachineOutput = recentKpis.length
-    ? recentKpis.reduce((acc, k) => acc + ((k.unitsSold ?? 0) / Math.max(1, k.machines ?? 1)), 0) / recentKpis.length
+  const avgFullyStaffedMachineOutput = recentKpis.length
+    ? recentKpis.reduce((acc, k) => {
+        const cap = k.capacity ?? 0;
+        const eff = k.efficiencyMultiplier ?? 1;
+        const machines = Math.max(1, k.machines ?? 1);
+        const fullyStaffedCapacity = cap / Math.max(0.35, eff);
+        return acc + fullyStaffedCapacity / machines;
+      }, 0) / recentKpis.length
     : null;
 
   const latestMarketPrice = recentKpis.at(-1)?.avgMarketPrice;
@@ -145,8 +147,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                         <ul className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-200">
                           <li>Current market avg price: <strong>${Math.round(latestMarketPrice ?? currentDef.briefing?.metricHints?.marketAveragePrice ?? 35)}</strong></li>
                           <li>Typical COGS / unit: <strong>${Math.round(latestCogs ?? currentDef.briefing?.metricHints?.typicalCogsPerUnit ?? 12)}</strong></li>
-                          <li>Observed units per staff: <strong>{avgProductivity ? avgProductivity.toFixed(1) : "n/a"}</strong></li>
-                          <li>Observed units per machine: <strong>{avgMachineOutput ? avgMachineOutput.toFixed(1) : "n/a"}</strong></li>
+                          <li>Units produced per fully staffed machine: <strong>{avgFullyStaffedMachineOutput ? avgFullyStaffedMachineOutput.toFixed(1) : "n/a"}</strong></li>
                         </ul>
                         <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.staffingProductivityRule}</p>
                         <p className="text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.machineryProductivityRule}</p>
