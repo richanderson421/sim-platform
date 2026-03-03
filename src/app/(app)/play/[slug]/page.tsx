@@ -106,12 +106,18 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
             <section className="card mt-6">
               <h2 className="text-lg font-semibold">My Progress</h2>
               <ul className="mt-3 space-y-2 text-sm">
-                {progress.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between rounded border bg-slate-50 px-3 py-2">
-                    <span>Round {p.round.number}</span>
-                    <strong>{(p.score ?? 0).toFixed(2)}</strong>
-                  </li>
-                ))}
+                {progress.map((p) => {
+                  const details = p.details as { summary?: string } | null;
+                  return (
+                    <li key={p.id} className="rounded border bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <span>Round {p.round.number}</span>
+                        <strong>{(p.score ?? 0).toFixed(2)}</strong>
+                      </div>
+                      {details?.summary && <p className="mt-1 text-xs text-slate-600">{details.summary}</p>}
+                    </li>
+                  );
+                })}
                 {!progress.length && <li className="text-slate-600">No submissions yet.</li>}
               </ul>
             </section>
