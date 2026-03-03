@@ -91,7 +91,7 @@ export default async function AdminPage({
   const sp = await searchParams;
   const gameTypes = await prisma.gameType.findMany({ include: { versions: true } });
   const professors = await prisma.user.findMany({ where: { systemRole: "USER" }, orderBy: { createdAt: "desc" }, take: 50 });
-  const instances = await prisma.gameInstance.findMany({ include: { owner: true, gameTypeVersion: { include: { gameType: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
+  const instances = await prisma.gameInstance.findMany({ include: { owner: true, roleAssignments: { where: { role: "OWNER" } }, gameTypeVersion: { include: { gameType: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
 
   return (
     <main className="min-h-screen">
@@ -136,7 +136,14 @@ export default async function AdminPage({
                   <span>
                     <strong>{inst.title}</strong> ({inst.slug}) · {inst.gameTypeVersion.gameType.name} v{inst.gameTypeVersion.versionNumber}
                   </span>
-                  <span className="text-slate-700 dark:text-slate-200">Owner: {inst.owner.email}</span>
+                  <div className="flex items-center gap-2">
+                    {inst.roleAssignments.length === 0 ? (
+                      <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900">Unassigned</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900">Assigned</span>
+                    )}
+                    <span className="text-slate-700 dark:text-slate-200">Owner: {inst.owner.email}</span>
+                  </div>
                 </div>
                 <form action={assignProfessor} className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="instanceId" value={inst.id} />
