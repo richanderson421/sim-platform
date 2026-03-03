@@ -31,20 +31,25 @@ async function createGame(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   const ownerEmail = String(formData.get("ownerEmail") || "").trim().toLowerCase();
   const gameTypeVersionId = String(formData.get("gameTypeVersionId") || "").trim();
-  if (!title || !slug || !ownerEmail || !gameTypeVersionId) redirect("/admin?toast=error&message=Missing+required+fields");
+  if (!title || !slug || !gameTypeVersionId) redirect("/admin?toast=error&message=Missing+required+fields");
 
-  const owner = await prisma.user.findUnique({ where: { email: ownerEmail } });
-  if (!owner) redirect("/admin?toast=error&message=Professor+email+not+found");
+  let owner = ownerEmail ? await prisma.user.findUnique({ where: { email: ownerEmail } }) : null;
+  if (!owner) {
+    owner = await prisma.user.findFirst({ where: { systemRole: "SYSTEM_ADMIN" }, orderBy: { createdAt: "asc" } });
+  }
+  if (!owner) redirect("/admin?toast=error&message=No+admin+or+professor+available+for+ownership");
 
   const instance = await prisma.gameInstance.create({
     data: { title, slug, ownerId: owner.id, gameTypeVersionId, status: "DRAFT" },
   });
 
-  await prisma.roleAssignment.upsert({
-    where: { userId_instanceId_role: { userId: owner.id, instanceId: instance.id, role: "OWNER" } },
-    update: {},
-    create: { userId: owner.id, instanceId: instance.id, role: "OWNER", scope: "INSTANCE" },
-  });
+  if (ownerEmail) {
+    await prisma.roleAssignment.upsert({
+      where: { userId_instanceId_role: { userId: owner.id, instanceId: instance.id, role: "OWNER" } },
+      update: {},
+      create: { userId: owner.id, instanceId: instance.id, role: "OWNER", scope: "INSTANCE" },
+    });
+  }
 
   const version = await prisma.gameTypeVersion.findUnique({ where: { id: gameTypeVersionId } });
   if (version) {
@@ -55,7 +60,27 @@ async function createGame(formData: FormData) {
 
   await prisma.instanceSettings.create({ data: { gameInstanceId: instance.id } });
   revalidatePath("/admin");
-  redirect("/admin?toast=success&message=Game+created+and+linked+to+professor");
+  redirect(ownerEmail
+    ? "/admin?toast=success&message=Game+created+and+linked+to+professor"
+    : "/admin?toast=warning&message=Game+created+without+professor+assignment");
+}
+
+async function assignProfessor(formData: FormData) {
+  "use server";
+  const instanceId = String(formData.get("instanceId") || "");
+  const ownerEmail = String(formData.get("ownerEmail") || "").trim().toLowerCase();
+  if (!instanceId || !ownerEmail) redirect("/admin?toast=error&message=Missing+assignment+fields");
+
+  const owner = await prisma.user.findUnique({ where: { email: ownerEmail } });
+  if (!owner) redirect("/admin?toast=error&message=Professor+email+not+found");
+
+  await prisma.gameInstance.update({ where: { id: instanceId }, data: { ownerId: owner.id } });
+
+  await prisma.roleAssignment.deleteMany({ where: { instanceId, role: "OWNER" } });
+  await prisma.roleAssignment.create({ data: { userId: owner.id, instanceId, role: "OWNER", scope: "INSTANCE" } });
+
+  revalidatePath("/admin");
+  redirect("/admin?toast=success&message=Professor+assignment+updated");
 }
 
 export default async function AdminPage({
@@ -65,7 +90,7 @@ export default async function AdminPage({
 }) {
   const sp = await searchParams;
   const gameTypes = await prisma.gameType.findMany({ include: { versions: true } });
-  const professors = await prisma.user.findMany({ where: { systemRole: "USER" }, orderBy: { createdAt: "desc" }, take: 15 });
+  const professors = await prisma.user.findMany({ where: { systemRole: "USER" }, orderBy: { createdAt: "desc" }, take: 50 });
   const instances = await prisma.gameInstance.findMany({ include: { owner: true, gameTypeVersion: { include: { gameType: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
 
   return (
@@ -73,7 +98,7 @@ export default async function AdminPage({
       <div className="app-shell">
         {sp.toast && sp.message && <Toast kind={sp.toast} message={decodeURIComponent(sp.message).replaceAll("+", " ")} />}
         <h1 className="page-title">Admin Console</h1>
-        <p className="page-subtitle">Create professors, create games, and link professor ownership.</p>
+        <p className="page-subtitle">Create professors, create games, and link/update professor ownership.</p>
 
         <section className="card mt-6">
           <h2 className="text-lg font-semibold">Add Professor Account</h2>
@@ -83,15 +108,15 @@ export default async function AdminPage({
             <input name="password" placeholder="Temporary password" type="text" className="rounded border px-3 py-2" required />
             <button className="btn-primary" type="submit">Create Professor</button>
           </form>
-          <div className="mt-3 text-xs text-slate-600">Recent professors: {professors.map((p) => p.email).join(" · ")}</div>
+          <div className="mt-3 text-xs text-slate-600">Recent professors: {professors.slice(0, 15).map((p) => p.email).join(" · ")}</div>
         </section>
 
         <section className="card mt-6">
-          <h2 className="text-lg font-semibold">Create Game Instance + Link Professor</h2>
+          <h2 className="text-lg font-semibold">Create Game Instance</h2>
           <form action={createGame} className="mt-3 grid gap-2 md:grid-cols-5">
             <input name="title" placeholder="Game title" className="rounded border px-3 py-2" required />
             <input name="slug" placeholder="game-slug" className="rounded border px-3 py-2" required />
-            <input name="ownerEmail" placeholder="owner email" type="email" className="rounded border px-3 py-2" required />
+            <input name="ownerEmail" placeholder="owner email (optional)" type="email" className="rounded border px-3 py-2" />
             <select name="gameTypeVersionId" className="rounded border px-3 py-2" required>
               <option value="">Select version</option>
               {gameTypes.flatMap((g) => g.versions.map((v) => (
@@ -106,11 +131,22 @@ export default async function AdminPage({
           <h2 className="text-lg font-semibold">Recent Games + Professor Links</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {instances.map((inst) => (
-              <li key={inst.id} className="flex items-center justify-between rounded border bg-slate-50 px-3 py-2 dark:bg-slate-900">
-                <span>
-                  <strong>{inst.title}</strong> ({inst.slug}) · {inst.gameTypeVersion.gameType.name} v{inst.gameTypeVersion.versionNumber}
-                </span>
-                <span className="text-slate-700 dark:text-slate-200">Owner: {inst.owner.email}</span>
+              <li key={inst.id} className="space-y-2 rounded border bg-slate-50 px-3 py-2 dark:bg-slate-900">
+                <div className="flex items-center justify-between gap-3">
+                  <span>
+                    <strong>{inst.title}</strong> ({inst.slug}) · {inst.gameTypeVersion.gameType.name} v{inst.gameTypeVersion.versionNumber}
+                  </span>
+                  <span className="text-slate-700 dark:text-slate-200">Owner: {inst.owner.email}</span>
+                </div>
+                <form action={assignProfessor} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="instanceId" value={inst.id} />
+                  <select name="ownerEmail" className="rounded border px-3 py-2" defaultValue={inst.owner.email} required>
+                    {professors.map((p) => (
+                      <option key={p.id} value={p.email}>{p.name || p.email} ({p.email})</option>
+                    ))}
+                  </select>
+                  <button className="btn-secondary" type="submit">Set / Change Professor</button>
+                </form>
               </li>
             ))}
             {!instances.length && <li className="text-slate-600">No games created yet.</li>}
