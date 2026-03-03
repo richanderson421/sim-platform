@@ -190,6 +190,9 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
 
               {openRound && currentDef && (
                 <>
+                  <div className="mt-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-200">
+                    You are currently completing <strong>Turn {openRound.number}</strong>. Your submission is locked to this turn.
+                  </div>
                   <div className="mt-3 space-y-3">
                     <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
                       <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Decision Context (Month {openRound.number})</p>

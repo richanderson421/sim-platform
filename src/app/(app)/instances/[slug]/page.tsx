@@ -120,6 +120,13 @@ export default async function InstancePage({
     return acc;
   }, {})).sort((a, b) => b.score - a.score);
 
+  const openRound = instance.rounds.find((r) => r.status === "OPEN");
+  const approvedCount = instance.enrollments.length;
+  const submittedCount = openRound
+    ? await prisma.decisionSubmission.count({ where: { gameInstanceId: instance.id, roundId: openRound.id } })
+    : 0;
+  const allSubmitted = approvedCount > 0 && submittedCount >= approvedCount;
+
   return (
     <main className="min-h-screen">
       <div className="app-shell">
@@ -192,6 +199,12 @@ export default async function InstancePage({
               <form action={controlTurn}><input type="hidden" name="instanceId" value={instance.id} /><input type="hidden" name="slug" value={slug} /><input type="hidden" name="action" value="force-advance" /><button className="btn-secondary" type="submit">Force Advance</button></form>
             </div>
           </div>
+          {openRound && (
+            <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${allSubmitted ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
+              Turn {openRound.number}: {submittedCount}/{approvedCount} approved students submitted.
+              {allSubmitted ? " All submissions received — ready to advance." : " Waiting on remaining submissions."}
+            </div>
+          )}
           <ul className="mt-3 space-y-2 text-sm">
             {instance.rounds.map((r) => (
               <li key={r.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
