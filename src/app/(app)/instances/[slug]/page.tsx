@@ -59,13 +59,13 @@ async function controlTurn(formData: FormData) {
 
   const open = rounds.find((r) => r.status === "OPEN");
 
-  if (action === "advance") {
+  if (action === "advance" || action === "force-advance") {
     if (!open) redirect(`/instances/${slug}?toast=warning&message=No+open+turn+to+advance`);
 
     const approvedCount = await prisma.enrollment.count({ where: { gameInstanceId: instanceId, status: "APPROVED" } });
     const submittedCount = await prisma.decisionSubmission.count({ where: { roundId: open.id } });
 
-    if (approvedCount > 0 && submittedCount < approvedCount) {
+    if (action === "advance" && approvedCount > 0 && submittedCount < approvedCount) {
       redirect(`/instances/${slug}?toast=warning&message=Cannot+advance%3A+not+all+approved+students+submitted+for+this+turn`);
     }
 
@@ -74,6 +74,9 @@ async function controlTurn(formData: FormData) {
     if (next) await prisma.round.update({ where: { id: next.id }, data: { status: "OPEN", openAt: new Date() } });
 
     revalidatePath(`/instances/${slug}`);
+    if (action === "force-advance") {
+      redirect(`/instances/${slug}?toast=warning&message=Turn+force-advanced+before+all+submissions+were+in`);
+    }
     redirect(`/instances/${slug}?toast=success&message=Turn+advanced`);
   }
 
@@ -166,9 +169,10 @@ export default async function InstancePage({
         <section className="card mt-6">
           <div className="flex items-center justify-between">
             <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100"><ListChecks className="h-4 w-4" /> Turns / Rounds</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <form action={controlTurn}><input type="hidden" name="instanceId" value={instance.id} /><input type="hidden" name="slug" value={slug} /><input type="hidden" name="action" value="regress" /><button className="btn-secondary" type="submit">Regress Turn</button></form>
               <form action={controlTurn}><input type="hidden" name="instanceId" value={instance.id} /><input type="hidden" name="slug" value={slug} /><input type="hidden" name="action" value="advance" /><button className="btn-primary" type="submit">Advance Turn</button></form>
+              <form action={controlTurn}><input type="hidden" name="instanceId" value={instance.id} /><input type="hidden" name="slug" value={slug} /><input type="hidden" name="action" value="force-advance" /><button className="btn-secondary" type="submit">Force Advance</button></form>
             </div>
           </div>
           <ul className="mt-3 space-y-2 text-sm">
