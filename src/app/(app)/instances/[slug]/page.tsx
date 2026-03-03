@@ -174,8 +174,8 @@ export default async function InstancePage({
           </div>
           <ul className="mt-3 space-y-2 text-sm">
             {instance.enrollments.map((en) => (
-              <li key={en.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                <span>{en.user.name || en.user.email} ({en.user.email})</span>
+              <li key={en.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                <span className="font-medium">{en.user.name || en.user.email} <span className="font-normal text-slate-600 dark:text-slate-300">({en.user.email})</span></span>
                 <a className="btn-secondary" href={`/play/${slug}?student=${encodeURIComponent(en.user.email)}`}>View as Student</a>
               </li>
             ))}
