@@ -4,6 +4,8 @@ import { Sparkles, GitBranchPlus } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { StatusChip } from "@/components/status-chip";
 
+export const dynamic = "force-dynamic";
+
 async function createProfessor(formData: FormData) {
   "use server";
   const name = String(formData.get("name") || "").trim();
@@ -55,6 +57,7 @@ async function createGame(formData: FormData) {
 export default async function AdminPage() {
   const gameTypes = await prisma.gameType.findMany({ include: { versions: true } });
   const professors = await prisma.user.findMany({ where: { systemRole: "USER" }, orderBy: { createdAt: "desc" }, take: 15 });
+  const instances = await prisma.gameInstance.findMany({ include: { owner: true, gameTypeVersion: { include: { gameType: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
 
   return (
     <main className="min-h-screen">
@@ -87,6 +90,21 @@ export default async function AdminPage() {
             </select>
             <button className="btn-primary" type="submit">Create Game</button>
           </form>
+        </section>
+
+        <section className="card mt-6">
+          <h2 className="text-lg font-semibold">Recent Games + Professor Links</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {instances.map((inst) => (
+              <li key={inst.id} className="flex items-center justify-between rounded border bg-slate-50 px-3 py-2 dark:bg-slate-900">
+                <span>
+                  <strong>{inst.title}</strong> ({inst.slug}) · {inst.gameTypeVersion.gameType.name} v{inst.gameTypeVersion.versionNumber}
+                </span>
+                <span className="text-slate-700 dark:text-slate-200">Owner: {inst.owner.email}</span>
+              </li>
+            ))}
+            {!instances.length && <li className="text-slate-600">No games created yet.</li>}
+          </ul>
         </section>
 
         <div className="mt-6 space-y-4">
