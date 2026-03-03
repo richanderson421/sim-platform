@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { BarChart3, Users, Layers } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { StatusChip } from "@/components/status-chip";
 
 export default async function DashboardPage() {
   const instances = await prisma.gameInstance.findMany({
@@ -18,12 +20,14 @@ export default async function DashboardPage() {
             <Link key={i.id} href={`/instances/${i.slug}`} className="card transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-lg font-semibold text-slate-900">{i.title}</div>
-                  <div className="mt-2 text-sm text-slate-600">
-                    {i.enrollments.length} students · {i.rounds.length} rounds
+                  <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{i.title}</div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {i.enrollments.length} students</span>
+                    <span className="inline-flex items-center gap-1"><Layers className="h-3.5 w-3.5" /> {i.rounds.length} rounds</span>
+                    <span className="inline-flex items-center gap-1"><BarChart3 className="h-3.5 w-3.5" /> active sim</span>
                   </div>
                 </div>
-                <span className="status-badge">{i.status}</span>
+                <StatusChip value={i.status} />
               </div>
             </Link>
           ))}

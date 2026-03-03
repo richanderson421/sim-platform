@@ -1,4 +1,6 @@
+import { Sparkles, GitBranchPlus } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { StatusChip } from "@/components/status-chip";
 
 export default async function AdminPage() {
   const gameTypes = await prisma.gameType.findMany({ include: { versions: true } });
@@ -12,12 +14,16 @@ export default async function AdminPage() {
         <div className="mt-6 space-y-4">
           {gameTypes.map((gt) => (
             <div key={gt.id} className="card">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{gt.name}</h2>
-                  <p className="mt-1 text-sm text-slate-600">Key: {gt.key}</p>
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{gt.name}</h2>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Key: {gt.key}</p>
+                  <div className="mt-3 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1"><GitBranchPlus className="h-3.5 w-3.5" /> {gt.versions.length} versions</span>
+                    <span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> template family</span>
+                  </div>
                 </div>
-                <span className="status-badge">{gt.versions.length} versions</span>
+                <StatusChip value="IN_PROGRESS" />
               </div>
             </div>
           ))}
