@@ -74,11 +74,23 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
 
   const summary = `Month ${month}: You priced at $${d.price}, ran ${nextEmployees} staff and ${nextMachines} machines, sold ${unitsSold}/${expectedDemand} units. Revenue $${Math.round(revenue)}, profit $${Math.round(profit)}, ending cash $${Math.round(nextCash)}.`;
 
+  const drivers: string[] = [];
+  if (d.price > avgMarketPrice) drivers.push(`Your price ($${d.price}) was above market average ($${avgMarketPrice}), which likely reduced unit demand.`);
+  else drivers.push(`Your price ($${d.price}) was at/below market average ($${avgMarketPrice}), supporting demand.`);
+
+  if (d.machinePurchase > 0) drivers.push(`Machine purchases increased capacity but added $${Math.round(machineCapex).toLocaleString()} in capital costs this month.`);
+  if (d.staffDelta > 0) drivers.push(`Hiring increased capacity but raised payroll to $${Math.round(payrollCost).toLocaleString()}.`);
+  if (d.staffDelta < 0) drivers.push(`Staff reductions lowered payroll but may constrain future throughput.`);
+  if (d.marketing > 0) drivers.push(`Marketing spend of $${Math.round(d.marketing).toLocaleString()} boosted demand/brand but reduced short-term profit.`);
+  if (stockout) drivers.push(`Demand exceeded supply, causing stockouts and lost sales opportunities.`);
+  if (!stockout && nextInventory > 220) drivers.push(`High ending inventory (${nextInventory} units) tied up working capital.`);
+
   const score = nextCash + nextBrand * 120 - Math.max(0, nextInventory - 220) * 4;
 
   return {
     score,
     summary,
+    drivers,
     kpis: {
       expectedDemand,
       unitsSold,

@@ -214,7 +214,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
               <h2 className="text-lg font-semibold">My Progress</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {progress.map((p) => {
-                  const details = p.details as { summary?: string } | null;
+                  const details = p.details as { summary?: string; drivers?: string[] } | null;
                   return (
                     <li key={p.id} className="rounded border bg-slate-50 px-3 py-2">
                       <div className="flex items-center justify-between">
@@ -222,6 +222,14 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                         <strong>{(p.score ?? 0).toFixed(2)}</strong>
                       </div>
                       {details?.summary && <p className="mt-1 text-xs text-slate-600">{details.summary}</p>}
+                      {!!details?.drivers?.length && (
+                        <details className="mt-2 text-xs text-slate-700">
+                          <summary className="cursor-pointer font-semibold text-indigo-700">Why your result changed</summary>
+                          <ul className="mt-1 list-disc pl-5">
+                            {details.drivers.map((d) => <li key={d}>{d}</li>)}
+                          </ul>
+                        </details>
+                      )}
                     </li>
                   );
                 })}
