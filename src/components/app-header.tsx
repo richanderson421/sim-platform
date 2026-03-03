@@ -13,10 +13,10 @@ export function AppHeader() {
         </Link>
 
         <nav className="flex items-center gap-2 text-sm">
-          <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
+          <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
             <LayoutDashboard className="h-4 w-4" /> Dashboard
           </Link>
-          <Link href="/admin" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
+          <Link href="/admin" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
             <ShieldCheck className="h-4 w-4" /> Admin
           </Link>
         </nav>

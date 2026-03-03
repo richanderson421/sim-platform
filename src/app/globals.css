@@ -3,7 +3,7 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
-  --muted-foreground: #475569;
+  --muted-foreground: #334155;
   --card: #ffffff;
   --border: #e2e8f0;
 
@@ -41,9 +41,9 @@ body {
   :root {
     --background: #020617;
     --foreground: #e2e8f0;
-    --muted-foreground: #94a3b8;
-    --card: #0b1220;
-    --border: #1e293b;
+    --muted-foreground: #cbd5e1;
+    --card: #111827;
+    --border: #334155;
   }
 
   body {
@@ -96,14 +96,26 @@ a {
   }
 
   .btn-secondary {
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--foreground);
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition;
+    border: 1px solid #a5b4fc;
+    background: #eef2ff;
+    color: #312e81;
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition;
   }
 
   .btn-secondary:hover {
-    background: color-mix(in srgb, var(--card) 88%, var(--primary) 12%);
+    background: #e0e7ff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .btn-secondary {
+      border-color: #6366f1;
+      background: #1e1b4b;
+      color: #e0e7ff;
+    }
+
+    .btn-secondary:hover {
+      background: #312e81;
+    }
   }
 
   .status-badge {
