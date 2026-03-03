@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SystemRole {
+  SYSTEM_ADMIN
+  USER
+}
+
+enum RoleScope {
+  ORGANIZATION
+  INSTANCE
+}
+
+enum InstanceRole {
+  OWNER
+  TA
+  PLAYER
+}
+
+enum EnrollmentRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  REVOKED
+}
+
+enum InstanceStatus {
+  DRAFT
+  ENROLLMENT_OPEN
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum RoundStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model User {
+  id               String               @id @default(cuid())
+  name             String?
+  email            String               @unique
+  emailVerified    DateTime?
+  image            String?
+  passwordHash     String?
+  systemRole       SystemRole           @default(USER)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  accounts         Account[]
+  sessions         Session[]
+  ownedInstances   GameInstance[]       @relation("OwnedInstances")
+  roleAssignments  RoleAssignment[]
+  enrollmentReqs   EnrollmentRequest[] @relation("RequestUser")
+  reviewedRequests EnrollmentRequest[] @relation("RequestReviewer")
+  enrollments      Enrollment[]
+  approvedEnrollments Enrollment[]     @relation("EnrollmentApprover")
+  submissions      DecisionSubmission[]
+  results          Result[]
+  auditLogs        AuditLog[]
+  createdGameTypes GameType[]           @relation("GameTypeCreator")
+  createdVersions  GameTypeVersion[]    @relation("GameTypeVersionCreator")
+}
+
+model Organization {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  gameInstances   GameInstance[]
+  roleAssignments RoleAssignment[]
+}
+
+model RoleAssignment {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope          RoleScope
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instanceId     String?
+  instance       GameInstance? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  role           InstanceRole
+  createdAt      DateTime     @default(now())
+
+  @@index([userId, scope])
+  @@unique([userId, instanceId, role])
+}
+
+model GameType {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  description String?
+  createdById String
+  createdBy   User              @relation("GameTypeCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  versions    GameTypeVersion[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model GameTypeVersion {
+  id                   String         @id @default(cuid())
+  gameTypeId           String
+  gameType             GameType       @relation(fields: [gameTypeId], references: [id], onDelete: Cascade)
+  versionNumber        Int
+  isPublished          Boolean        @default(false)
+  configJson           Json
+  roundCount           Int
+  publishedAt          DateTime?
+  createdAt            DateTime       @default(now())
+  createdById          String
+  createdBy            User           @relation("GameTypeVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  instances            GameInstance[]
+  contentModules       ContentModule[]
+
+  @@unique([gameTypeId, versionNumber])
+}
+
+model GameInstance {
+  id                   String               @id @default(cuid())
+  slug                 String               @unique
+  title                String
+  gameTypeVersionId    String
+  gameTypeVersion      GameTypeVersion      @relation(fields: [gameTypeVersionId], references: [id], onDelete: Restrict)
+  ownerId              String
+  owner                User                 @relation("OwnedInstances", fields: [ownerId], references: [id], onDelete: Restrict)
+  organizationId       String?
+  organization         Organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  status               InstanceStatus       @default(DRAFT)
+  settings             InstanceSettings?
+  rounds               Round[]
+  enrollmentRequests   EnrollmentRequest[]
+  enrollments          Enrollment[]
+  submissions          DecisionSubmission[]
+  results              Result[]
+  roleAssignments      RoleAssignment[]
+  auditLogs            AuditLog[]
+  contentModules       ContentModule[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+}
+
+model InstanceSettings {
+  id                    String       @id @default(cuid())
+  gameInstanceId        String       @unique
+  gameInstance          GameInstance @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  autoApproveEnrollments Boolean     @default(false)
+  requireStudentId      Boolean      @default(false)
+  allowDisplayName      Boolean      @default(true)
+  peerVisibility        Boolean      @default(false)
+  allowLateSubmissions  Boolean      @default(false)
+  lateGraceMinutes      Int          @default(0)
+  resultsVisibleAfterRoundClose Boolean @default(true)
+  anonymizeOnArchive    Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+}
+
+model EnrollmentRequest {
+  id             String                  @id @default(cuid())
+  gameInstanceId String
+  gameInstance   GameInstance            @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?                   @relation("RequestUser", fields: [userId], references: [id], onDelete: SetNull)
+  email          String
+  name           String
+  studentId      String?
+  status         EnrollmentRequestStatus @default(PENDING)
+  deniedReason   String?
+  reviewedById   String?
+  reviewedBy     User?                   @relation("RequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([gameInstanceId, status])
+}
+
+model Enrollment {
+  id             String                  @id @default(cuid())
+  gameInstanceId String
+  gameInstance   GameInstance            @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         EnrollmentRequestStatus @default(APPROVED)
+  studentId      String?
+  displayName    String?
+  approvedById   String?
+  approvedBy     User?                   @relation("EnrollmentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime                @default(now())
+
+  @@unique([gameInstanceId, userId])
+}
+
+model Round {
+  id             String       @id @default(cuid())
+  gameInstanceId String
+  gameInstance   GameInstance @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  number         Int
+  status         RoundStatus  @default(DRAFT)
+  openAt         DateTime?
+  closeAt        DateTime?
+  reopenedCount  Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  submissions    DecisionSubmission[]
+  results        Result[]
+  contentModules ContentModule[]
+
+  @@unique([gameInstanceId, number])
+}
+
+model ContentModule {
+  id                String           @id @default(cuid())
+  gameTypeVersionId String?
+  gameTypeVersion   GameTypeVersion? @relation(fields: [gameTypeVersionId], references: [id], onDelete: Cascade)
+  gameInstanceId    String?
+  gameInstance      GameInstance?    @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  roundId           String?
+  round             Round?           @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  title             String
+  markdown          String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model DecisionSubmission {
+  id             String       @id @default(cuid())
+  gameInstanceId String
+  gameInstance   GameInstance @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  roundId        String
+  round          Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payload        Json
+  isLate         Boolean      @default(false)
+  submittedAt    DateTime     @default(now())
+
+  @@unique([roundId, userId])
+}
+
+model Result {
+  id             String       @id @default(cuid())
+  gameInstanceId String
+  gameInstance   GameInstance @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  roundId        String
+  round          Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  score          Float?
+  details        Json
+  createdAt      DateTime     @default(now())
+
+  @@index([gameInstanceId, roundId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  actorId        String?
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  gameInstanceId String?
+  gameInstance   GameInstance? @relation(fields: [gameInstanceId], references: [id], onDelete: Cascade)
+  action         String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
