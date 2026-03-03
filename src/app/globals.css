@@ -70,17 +70,19 @@ a {
   }
 
   .page-title {
-    @apply text-3xl font-bold tracking-tight text-slate-900;
+    color: var(--foreground);
+    @apply text-3xl font-bold tracking-tight;
   }
 
   .page-subtitle {
     color: var(--muted-foreground);
-    @apply mt-2 text-sm;
+    @apply mt-2 text-base;
   }
 
   .card {
     background: var(--card);
     border: 1px solid var(--border);
+    color: var(--foreground);
     @apply rounded-xl p-5 shadow-sm;
   }
 
@@ -95,7 +97,13 @@ a {
 
   .btn-secondary {
     border: 1px solid var(--border);
-    @apply inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50;
+    background: var(--card);
+    color: var(--foreground);
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition;
+  }
+
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--card) 88%, var(--primary) 12%);
   }
 
   .status-badge {
