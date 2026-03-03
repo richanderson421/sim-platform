@@ -106,6 +106,7 @@ export default async function InstancePage({
     include: {
       rounds: { orderBy: { number: "asc" } },
       enrollmentRequests: { orderBy: { createdAt: "desc" } },
+      enrollments: { where: { status: "APPROVED" }, include: { user: true }, orderBy: { createdAt: "desc" } },
       results: { include: { user: true } },
     },
   });
@@ -163,6 +164,22 @@ export default async function InstancePage({
                 </div>
               </li>
             ))}
+          </ul>
+        </section>
+
+        <section className="card mt-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Approved Students (View As)</h2>
+            <span className="status-badge">{instance.enrollments.length} approved</span>
+          </div>
+          <ul className="mt-3 space-y-2 text-sm">
+            {instance.enrollments.map((en) => (
+              <li key={en.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <span>{en.user.name || en.user.email} ({en.user.email})</span>
+                <a className="btn-secondary" href={`/play/${slug}?student=${encodeURIComponent(en.user.email)}`}>View as Student</a>
+              </li>
+            ))}
+            {!instance.enrollments.length && <li className="text-slate-600">No approved students yet.</li>}
           </ul>
         </section>
 

@@ -15,6 +15,7 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/dashboard" className="btn-primary">Instructor Dashboard <ArrowRight className="ml-1 h-4 w-4" /></Link>
               <Link href="/admin" className="btn-secondary">Admin Console</Link>
+              <Link href="/student" className="btn-secondary">Student Access</Link>
             </div>
           </div>
 
