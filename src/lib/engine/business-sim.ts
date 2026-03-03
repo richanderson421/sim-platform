@@ -15,7 +15,7 @@ export const initialBusinessState: BusinessState = {
   machines: 4,
   debt: 20000,
   brand: 50,
-  demandBase: 140,
+  demandBase: 240,
 };
 
 export type BusinessDecision = {
@@ -38,7 +38,7 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
   const idealStaff = nextMachines * staffPerMachineTarget;
   const staffingRatio = nextEmployees / Math.max(1, idealStaff);
 
-  const machineBaseOutput = 42;
+  const machineBaseOutput = 95;
   const underStaffMultiplier = Math.max(0.35, Math.min(1, staffingRatio));
   const overStaffBonus = staffingRatio > 1 ? Math.min(0.25, (staffingRatio - 1) * 0.25) : 0;
   const efficiencyMultiplier = staffingRatio <= 1 ? underStaffMultiplier : 1 + overStaffBonus;
@@ -46,7 +46,7 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
   const capacity = Math.round(nextMachines * machineBaseOutput * efficiencyMultiplier);
   const production = capacity;
 
-  const priceDemandFactor = Math.max(0.6, Math.min(1.3, 1.04 - (d.price - 35) * 0.009));
+  const priceDemandFactor = Math.max(0.6, Math.min(1.3, 1.06 - (d.price - 55) * 0.008));
   const marketingDemandFactor = 1 + Math.min(0.28, d.marketing / 24000);
   const brandDemandFactor = 0.88 + previous.brand / 100;
 
@@ -56,14 +56,15 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
   const unitsSold = Math.min(expectedDemand, availableUnits);
   const stockout = expectedDemand > availableUnits;
 
-  const avgMarketPrice = Math.round(34 + (month % 4) * 1.5);
-  const cogsPerUnit = Math.round(11 + nextEmployees * 0.05 + nextMachines * 0.08);
+  const avgMarketPrice = Math.round(55 + (month % 4) * 2);
+  const cogsPerUnit = Math.round(18 + nextEmployees * 0.03 + nextMachines * 0.05);
 
   const revenue = unitsSold * d.price;
   const cogs = unitsSold * cogsPerUnit;
-  const payrollCost = nextEmployees * 2800;
+  const payrollPerStaff = 700;
+  const payrollCost = nextEmployees * payrollPerStaff;
   const machineCapex = Math.max(0, d.machinePurchase) * 14000;
-  const fixedOverhead = 6500;
+  const fixedOverhead = 2200;
   const totalCost = cogs + payrollCost + d.marketing + machineCapex + fixedOverhead;
 
   const profit = revenue - totalCost;
@@ -109,6 +110,9 @@ export function simulateBusinessTurn(month: number, previous: BusinessState, d: 
       cogs,
       cogsPerUnit,
       totalCost,
+      payrollCost,
+      fixedOverhead,
+      machineCapex,
       profit,
       cash: nextCash,
       inventory: nextInventory,

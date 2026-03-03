@@ -88,10 +88,12 @@ async function main() {
         'Is marketing spend proportional to your current cash position?',
       ],
       metricHints: {
-        marketAveragePrice: 35,
-        typicalCogsPerUnit: 12,
+        marketAveragePrice: 55,
+        typicalCogsPerUnit: 18,
         staffingProductivityRule: 'Each machine is ideally staffed by ~3 team members; understaffing lowers machine efficiency.',
         machineryProductivityRule: 'Each machine provides base throughput; extra staff above ideal gives smaller efficiency gains unless machines increase.',
+        fixedOverheadEstimate: 2200,
+        payrollPerStaffEstimate: 700,
       },
     },
     fields: [

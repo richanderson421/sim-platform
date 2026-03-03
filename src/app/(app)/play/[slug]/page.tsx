@@ -129,6 +129,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
           typicalCogsPerUnit?: number;
           staffingProductivityRule?: string;
           machineryProductivityRule?: string;
+          fixedOverheadEstimate?: number;
+          payrollPerStaffEstimate?: number;
         };
       };
       fields: {
@@ -210,6 +212,9 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                           <li>Current market avg price: <strong>${Math.round(latestMarketPrice ?? currentDef.briefing?.metricHints?.marketAveragePrice ?? 35)}</strong></li>
                           <li>Typical COGS / unit: <strong>${Math.round(latestCogs ?? currentDef.briefing?.metricHints?.typicalCogsPerUnit ?? 12)}</strong></li>
                           <li>Units produced per fully staffed machine: <strong>{avgFullyStaffedMachineOutput ? avgFullyStaffedMachineOutput.toFixed(1) : "n/a"}</strong></li>
+                          <li>Fixed overhead (monthly): <strong>${Math.round(currentDef.briefing?.metricHints?.fixedOverheadEstimate ?? 2200).toLocaleString()}</strong></li>
+                          <li>Payroll per staff (monthly): <strong>${Math.round(currentDef.briefing?.metricHints?.payrollPerStaffEstimate ?? 700).toLocaleString()}</strong></li>
+                          <li>Estimated current payroll: <strong>${Math.round((currentDef.briefing?.metricHints?.payrollPerStaffEstimate ?? 700) * latestState.employees).toLocaleString()}</strong></li>
                         </ul>
                         <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.staffingProductivityRule}</p>
                         <p className="text-xs text-slate-600 dark:text-slate-300">{currentDef.briefing?.metricHints?.machineryProductivityRule}</p>
