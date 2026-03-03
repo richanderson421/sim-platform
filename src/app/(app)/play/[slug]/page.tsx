@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { evaluateSubmission, validateSubmission } from "@/lib/engine/config-engine";
@@ -9,7 +10,6 @@ async function submitDecision(formData: FormData) {
   const slug = String(formData.get("slug") || "");
   const studentEmail = String(formData.get("studentEmail") || "").trim().toLowerCase();
   if (!slug || !studentEmail) return;
-
   const instance = await prisma.gameInstance.findUnique({ where: { slug }, include: { rounds: true, gameTypeVersion: true } });
   if (!instance) return;
 
@@ -40,9 +40,35 @@ async function submitDecision(formData: FormData) {
   });
 
   const score = evaluateSubmission(instance.gameTypeVersion.configJson, openRound.number, validated as Record<string, unknown>);
-  await prisma.result.create({ data: { gameInstanceId: instance.id, roundId: openRound.id, userId: user.id, score: score.score, details: score } });
+  await prisma.result.upsert({
+    where: { id: `${openRound.id}:${user.id}` },
+    update: { score: score.score, details: score as Prisma.InputJsonValue },
+    create: { id: `${openRound.id}:${user.id}`, gameInstanceId: instance.id, roundId: openRound.id, userId: user.id, score: score.score, details: score as Prisma.InputJsonValue },
+  });
 
-  revalidatePath(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
+  revalidatePath(`/play/${slug}`);
+  redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
+}
+
+async function unsubmitDecision(formData: FormData) {
+  "use server";
+  const slug = String(formData.get("slug") || "");
+  const studentEmail = String(formData.get("studentEmail") || "").trim().toLowerCase();
+  if (!slug || !studentEmail) return;
+
+  const instance = await prisma.gameInstance.findUnique({ where: { slug }, include: { rounds: true } });
+  if (!instance) return;
+  const user = await prisma.user.findUnique({ where: { email: studentEmail } });
+  if (!user) return;
+
+  const openRound = instance.rounds.find((r) => r.status === "OPEN");
+  if (!openRound) return;
+
+  await prisma.decisionSubmission.deleteMany({ where: { roundId: openRound.id, userId: user.id } });
+  await prisma.result.deleteMany({ where: { roundId: openRound.id, userId: user.id } });
+
+  revalidatePath(`/play/${slug}`);
+  redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
 }
 
 export default async function PlayPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ student?: string }> }) {
@@ -83,6 +109,9 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
     }[];
   };
   const currentDef = openRound ? config.rounds.find((r) => r.roundNumber === openRound.number) : null;
+  const currentSubmission = user && openRound
+    ? await prisma.decisionSubmission.findUnique({ where: { roundId_userId: { roundId: openRound.id, userId: user.id } } })
+    : null;
 
   const progress = user
     ? await prisma.result.findMany({ where: { gameInstanceId: instance.id, userId: user.id }, include: { round: true }, orderBy: { round: { number: "asc" } } })
@@ -187,11 +216,23 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                         <span className="font-medium">{f.label}</span>
                         {f.description && <span className="text-xs text-slate-600 dark:text-slate-300">{f.description}</span>}
                         {f.type === "select" ? (
-                          <select name={f.key} className="rounded border px-3 py-2">
+                          <select
+                            name={f.key}
+                            className={`rounded border px-3 py-2 ${currentSubmission ? "bg-slate-100 text-slate-600" : ""}`}
+                            defaultValue={String((currentSubmission?.payload as Record<string, unknown> | null)?.[f.key] ?? "")}
+                            disabled={Boolean(currentSubmission)}
+                          >
                             {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         ) : (
-                          <input name={f.key} type="number" className="rounded border px-3 py-2" required />
+                          <input
+                            name={f.key}
+                            type="number"
+                            className={`rounded border px-3 py-2 ${currentSubmission ? "bg-slate-100 text-slate-600" : ""}`}
+                            required
+                            defaultValue={String((currentSubmission?.payload as Record<string, unknown> | null)?.[f.key] ?? "")}
+                            disabled={Boolean(currentSubmission)}
+                          />
                         )}
                       </label>
                       {f.impact && (
@@ -203,8 +244,15 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                     </div>
                   ))}
 
-                  <div className="md:col-span-2">
-                    <button className="btn-primary" type="submit">Submit Turn Decision</button>
+                  <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+                    {!currentSubmission ? (
+                      <button className="btn-primary" type="submit">Submit Turn Decision</button>
+                    ) : (
+                      <>
+                        <span className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">Decisions submitted for this turn. Inputs are locked.</span>
+                        <button className="btn-secondary" type="submit" formAction={unsubmitDecision}>Change Decisions</button>
+                      </>
+                    )}
                   </div>
                 </form>
                 </>
