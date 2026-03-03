@@ -70,9 +70,24 @@ async function main() {
     'Year-end push: maximize performance while avoiding stockouts.',
   ];
 
+  const actorProfiles = [
+    { name: 'ValueCo', description: 'Low-price rival that wins highly price-sensitive buyers.', likelyMove: 'May cut prices if you raise yours aggressively.' },
+    { name: 'PremiumPlus', description: 'Quality-focused competitor with strong brand loyalty.', likelyMove: 'Will outspend on branding when customer sentiment weakens.' },
+    { name: 'SupplyHub', description: 'Key upstream supplier affected by seasonal constraints.', likelyMove: 'Costs and lead-times become volatile during peak demand months.' },
+  ];
+
   const bizRounds = Array.from({ length: 12 }, (_, i) => ({
     roundNumber: i + 1,
     scenario: monthlyScenarios[i],
+    briefing: {
+      background: `Month ${i + 1}: ${monthlyScenarios[i]} Your objective is to grow sustainable profit while protecting cash flow and avoiding operational instability.`,
+      marketActors: actorProfiles,
+      focusQuestions: [
+        'Are you pricing for volume, margin, or a balanced position?',
+        'Can your production and staffing support expected demand?',
+        'Are borrowing/repayment choices improving long-term resilience?',
+      ],
+    },
     fields: [
       { key: 'price', label: 'Unit Price ($)', type: 'number', min: 10, max: 120, description: 'Set customer-facing unit price.', impact: 'Higher price improves margin but may reduce demand.' },
       { key: 'production', label: 'Production Units', type: 'number', min: 0, max: 500, description: 'How many units to produce this month.', impact: 'Too little can cause stockouts; too much increases inventory carrying risk.' },

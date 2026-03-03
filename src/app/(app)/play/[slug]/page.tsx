@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { evaluateSubmission, validateSubmission } from "@/lib/engine/config-engine";
+import { initialBusinessState } from "@/lib/engine/business-sim";
 
 async function submitDecision(formData: FormData) {
   "use server";
@@ -60,6 +61,11 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
     rounds: {
       roundNumber: number;
       scenario?: string;
+      briefing?: {
+        background?: string;
+        marketActors?: { name: string; description: string; likelyMove: string }[];
+        focusQuestions?: string[];
+      };
       fields: {
         key: string;
         label: string;
@@ -75,6 +81,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
   const progress = user
     ? await prisma.result.findMany({ where: { gameInstanceId: instance.id, userId: user.id }, include: { round: true }, orderBy: { round: { number: "asc" } } })
     : [];
+
+  const latestState = (progress.at(-1)?.details as { state?: typeof initialBusinessState } | null)?.state ?? initialBusinessState;
 
   return (
     <main className="min-h-screen">
@@ -93,9 +101,46 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
 
               {openRound && currentDef && (
                 <>
-                  <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
-                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Decision Context (Month {openRound.number})</p>
-                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{currentDef.scenario ?? "Review your prior results and balance growth, cash flow, and risk."}</p>
+                  <div className="mt-3 space-y-3">
+                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+                      <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Decision Context (Month {openRound.number})</p>
+                      <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{currentDef.briefing?.background ?? currentDef.scenario ?? "Review your prior results and balance growth, cash flow, and risk."}</p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <p className="text-sm font-semibold">Your Current Organization Snapshot</p>
+                        <ul className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                          <li>Cash: <strong>${Math.round(latestState.cash).toLocaleString()}</strong></li>
+                          <li>Inventory: <strong>{Math.round(latestState.inventory)}</strong> units</li>
+                          <li>Employees: <strong>{Math.round(latestState.employees)}</strong></li>
+                          <li>Debt: <strong>${Math.round(latestState.debt).toLocaleString()}</strong></li>
+                          <li>Brand Strength: <strong>{Math.round(latestState.brand)}</strong>/100</li>
+                        </ul>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <p className="text-sm font-semibold">Market Actors to Watch</p>
+                        <ul className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                          {(currentDef.briefing?.marketActors ?? []).map((a) => (
+                            <li key={a.name}>
+                              <p className="font-medium">{a.name}</p>
+                              <p>{a.description}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">Likely move: {a.likelyMove}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {!!currentDef.briefing?.focusQuestions?.length && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Before You Submit, Ask:</p>
+                        <ul className="mt-1 list-disc pl-5 text-sm text-slate-700 dark:text-slate-200">
+                          {currentDef.briefing.focusQuestions.map((q) => <li key={q}>{q}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   <form action={submitDecision} className="mt-3 grid gap-3 md:grid-cols-2">
