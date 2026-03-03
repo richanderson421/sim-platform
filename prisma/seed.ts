@@ -55,23 +55,46 @@ async function main() {
     create: { key: 'business-12-month', name: 'Business Simulation (12-Month)', createdById: admin.id },
   });
 
+  const monthlyScenarios = [
+    'Launch month: early adopters are curious but price sensitive.',
+    'Customer reviews begin shaping demand and trust.',
+    'A competitor enters with discount pricing.',
+    'Spring demand rises as market activity increases.',
+    'Input costs tick up; margin control matters.',
+    'Mid-year slowdown: demand softens unless marketing is strong.',
+    'Operational strain month: fulfillment reliability is critical.',
+    'Back-to-school bump creates new demand opportunities.',
+    'Market saturation risk: differentiation starts to matter.',
+    'Promotional season begins with aggressive competitor campaigns.',
+    'Budget pressure month: debt and cash flow discipline are key.',
+    'Year-end push: maximize performance while avoiding stockouts.',
+  ];
+
   const bizRounds = Array.from({ length: 12 }, (_, i) => ({
     roundNumber: i + 1,
+    scenario: monthlyScenarios[i],
     fields: [
-      { key: 'price', label: 'Unit Price ($)', type: 'number', min: 10, max: 120 },
-      { key: 'production', label: 'Production Units', type: 'number', min: 0, max: 500 },
-      { key: 'marketing', label: 'Marketing Spend ($)', type: 'number', min: 0, max: 30000 },
-      { key: 'hiring', label: 'Net Hiring (can be negative)', type: 'number', min: -10, max: 20 },
-      { key: 'rAndD', label: 'R&D Spend ($)', type: 'number', min: 0, max: 25000 },
-      { key: 'borrow', label: 'Borrow Amount ($)', type: 'number', min: 0, max: 50000 },
-      { key: 'repay', label: 'Debt Repayment ($)', type: 'number', min: 0, max: 50000 },
+      { key: 'price', label: 'Unit Price ($)', type: 'number', min: 10, max: 120, description: 'Set customer-facing unit price.', impact: 'Higher price improves margin but may reduce demand.' },
+      { key: 'production', label: 'Production Units', type: 'number', min: 0, max: 500, description: 'How many units to produce this month.', impact: 'Too little can cause stockouts; too much increases inventory carrying risk.' },
+      { key: 'marketing', label: 'Marketing Spend ($)', type: 'number', min: 0, max: 30000, description: 'Monthly demand generation spend.', impact: 'Increases demand and supports brand growth, but reduces short-term profit.' },
+      { key: 'hiring', label: 'Net Hiring (can be negative)', type: 'number', min: -10, max: 20, description: 'Adjust workforce up or down.', impact: 'More staff supports operations but increases payroll burden.' },
+      { key: 'rAndD', label: 'R&D Spend ($)', type: 'number', min: 0, max: 25000, description: 'Product/process improvement investment.', impact: 'Improves long-term brand strength and competitiveness.' },
+      { key: 'borrow', label: 'Borrow Amount ($)', type: 'number', min: 0, max: 50000, description: 'Additional debt financing this month.', impact: 'Boosts liquidity now, increases interest/debt burden later.' },
+      { key: 'repay', label: 'Debt Repayment ($)', type: 'number', min: 0, max: 50000, description: 'Debt paydown amount this month.', impact: 'Reduces future financing costs but lowers immediate cash reserves.' },
     ],
     scoring: { weights: { price: 1 } },
   }));
 
   const vBiz = await prisma.gameTypeVersion.upsert({
     where: { gameTypeId_versionNumber: { gameTypeId: gtBiz.id, versionNumber: 1 } },
-    update: {},
+    update: {
+      roundCount: 12,
+      isPublished: true,
+      configJson: {
+        simulation: 'business12',
+        rounds: bizRounds,
+      },
+    },
     create: {
       gameTypeId: gtBiz.id,
       versionNumber: 1,

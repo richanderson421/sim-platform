@@ -56,7 +56,20 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
   const enrollment = user ? await prisma.enrollment.findFirst({ where: { gameInstanceId: instance.id, userId: user.id, status: "APPROVED" } }) : null;
   const openRound = instance.rounds.find((r) => r.status === "OPEN");
 
-  const config = instance.gameTypeVersion.configJson as { rounds: { roundNumber: number; fields: { key: string; label: string; type: string; options?: { label: string; value: string }[] }[] }[] };
+  const config = instance.gameTypeVersion.configJson as {
+    rounds: {
+      roundNumber: number;
+      scenario?: string;
+      fields: {
+        key: string;
+        label: string;
+        type: string;
+        options?: { label: string; value: string }[];
+        description?: string;
+        impact?: string;
+      }[];
+    }[];
+  };
   const currentDef = openRound ? config.rounds.find((r) => r.roundNumber === openRound.number) : null;
 
   const progress = user
@@ -79,27 +92,43 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
               {!openRound && <p className="mt-2 text-sm">No round is currently open.</p>}
 
               {openRound && currentDef && (
-                <form action={submitDecision} className="mt-3 grid gap-3 md:grid-cols-2">
+                <>
+                  <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">Decision Context (Month {openRound.number})</p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{currentDef.scenario ?? "Review your prior results and balance growth, cash flow, and risk."}</p>
+                  </div>
+
+                  <form action={submitDecision} className="mt-3 grid gap-3 md:grid-cols-2">
                   <input type="hidden" name="slug" value={slug} />
                   <input type="hidden" name="studentEmail" value={studentEmail} />
 
                   {currentDef.fields.map((f) => (
-                    <label key={f.key} className="flex flex-col gap-1 text-sm">
-                      <span>{f.label}</span>
-                      {f.type === "select" ? (
-                        <select name={f.key} className="rounded border px-3 py-2">
-                          {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      ) : (
-                        <input name={f.key} type="number" className="rounded border px-3 py-2" required />
+                    <div key={f.key} className="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                      <label className="flex flex-col gap-1 text-sm">
+                        <span className="font-medium">{f.label}</span>
+                        {f.description && <span className="text-xs text-slate-600 dark:text-slate-300">{f.description}</span>}
+                        {f.type === "select" ? (
+                          <select name={f.key} className="rounded border px-3 py-2">
+                            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        ) : (
+                          <input name={f.key} type="number" className="rounded border px-3 py-2" required />
+                        )}
+                      </label>
+                      {f.impact && (
+                        <details className="mt-2 text-xs text-slate-700 dark:text-slate-200">
+                          <summary className="cursor-pointer select-none font-medium text-indigo-700 dark:text-indigo-300">How this decision affects your business</summary>
+                          <p className="mt-1">{f.impact}</p>
+                        </details>
                       )}
-                    </label>
+                    </div>
                   ))}
 
                   <div className="md:col-span-2">
                     <button className="btn-primary" type="submit">Submit Turn Decision</button>
                   </div>
                 </form>
+                </>
               )}
             </section>
 
