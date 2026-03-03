@@ -33,7 +33,12 @@ async function submitDecision(formData: FormData) {
     payload[field.key] = formData.get(field.key);
   }
 
-  const validated = validateSubmission(instance.gameTypeVersion.configJson, openRound.number, payload);
+  let validated: Record<string, unknown>;
+  try {
+    validated = validateSubmission(instance.gameTypeVersion.configJson, openRound.number, payload) as Record<string, unknown>;
+  } catch {
+    redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}&error=invalid_inputs`);
+  }
   const jsonPayload = validated as Prisma.InputJsonValue;
 
   await prisma.decisionSubmission.upsert({
@@ -107,9 +112,9 @@ async function unsubmitDecision(formData: FormData) {
   redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
 }
 
-export default async function PlayPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ student?: string }> }) {
+export default async function PlayPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ student?: string; error?: string }> }) {
   const { slug } = await params;
-  const { student } = await searchParams;
+  const { student, error } = await searchParams;
   const studentEmail = (student || "").trim().toLowerCase();
 
   const instance = await prisma.gameInstance.findUnique({ where: { slug }, include: { rounds: { orderBy: { number: "asc" } }, gameTypeVersion: true } });
@@ -140,6 +145,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
         key: string;
         label: string;
         type: string;
+        min?: number;
+        max?: number;
         options?: { label: string; value: string }[];
         description?: string;
         impact?: string;
@@ -178,6 +185,12 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
       <div className="app-shell">
         <h1 className="page-title">{instance.title} · Student Workspace</h1>
         <p className="page-subtitle">Enter your approved student email to play current turn and track progress.</p>
+
+        {error === "invalid_inputs" && (
+          <div className="mt-4 rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            One or more decisions were outside allowed ranges. Please enter values within the field limits and resubmit.
+          </div>
+        )}
 
         {!studentEmail && <div className="card mt-6">Use URL format: <code>/play/{slug}?student=student@school.edu</code></div>}
         {studentEmail && !enrollment && <div className="card mt-6">You are not approved for this game yet.</div>}
@@ -273,6 +286,8 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                           <input
                             name={f.key}
                             type="number"
+                            min={f.min}
+                            max={f.max}
                             className={`rounded border px-3 py-2 ${currentSubmission ? "bg-slate-100 text-slate-600" : ""}`}
                             required
                             defaultValue={String((currentSubmission?.payload as Record<string, unknown> | null)?.[f.key] ?? "")}
