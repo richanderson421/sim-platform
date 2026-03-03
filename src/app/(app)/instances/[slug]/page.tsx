@@ -1,16 +1,20 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ListChecks, UsersRound } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { StatusChip } from "@/components/status-chip";
+import { Toast } from "@/components/toast";
 
 async function addStudent(formData: FormData) {
   "use server";
   const instanceId = String(formData.get("instanceId") || "");
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
-  if (!instanceId || !name || !email) return;
+  const slug = String(formData.get("slug") || "");
+  if (!instanceId || !name || !email) redirect(`/instances/${slug}?toast=error&message=Missing+student+fields`);
   await prisma.enrollmentRequest.create({ data: { gameInstanceId: instanceId, name, email, status: "PENDING" } });
-  revalidatePath(`/instances/${String(formData.get("slug"))}`);
+  revalidatePath(`/instances/${slug}`);
+  redirect(`/instances/${slug}?toast=success&message=Student+added+to+approval+queue`);
 }
 
 async function reviewRequest(formData: FormData) {
@@ -19,7 +23,7 @@ async function reviewRequest(formData: FormData) {
   const decision = String(formData.get("decision") || "PENDING") as "APPROVED" | "DENIED";
   const slug = String(formData.get("slug") || "");
   const req = await prisma.enrollmentRequest.findUnique({ where: { id: requestId } });
-  if (!req) return;
+  if (!req) redirect(`/instances/${slug}?toast=error&message=Request+not+found`);
 
   await prisma.enrollmentRequest.update({ where: { id: requestId }, data: { status: decision, reviewedAt: new Date() } });
 
@@ -41,6 +45,7 @@ async function reviewRequest(formData: FormData) {
   }
 
   revalidatePath(`/instances/${slug}`);
+  redirect(`/instances/${slug}?toast=success&message=Enrollment+request+updated`);
 }
 
 async function controlTurn(formData: FormData) {
@@ -50,27 +55,49 @@ async function controlTurn(formData: FormData) {
   const action = String(formData.get("action") || "");
 
   const rounds = await prisma.round.findMany({ where: { gameInstanceId: instanceId }, orderBy: { number: "asc" } });
-  if (!rounds.length) return;
+  if (!rounds.length) redirect(`/instances/${slug}?toast=error&message=No+rounds+configured`);
 
   const open = rounds.find((r) => r.status === "OPEN");
 
   if (action === "advance") {
-    if (open) await prisma.round.update({ where: { id: open.id }, data: { status: "CLOSED", closeAt: new Date() } });
-    const next = rounds.find((r) => r.number === ((open?.number ?? 0) + 1));
+    if (!open) redirect(`/instances/${slug}?toast=warning&message=No+open+turn+to+advance`);
+
+    const approvedCount = await prisma.enrollment.count({ where: { gameInstanceId: instanceId, status: "APPROVED" } });
+    const submittedCount = await prisma.decisionSubmission.count({ where: { roundId: open.id } });
+
+    if (approvedCount > 0 && submittedCount < approvedCount) {
+      redirect(`/instances/${slug}?toast=warning&message=Cannot+advance%3A+not+all+approved+students+submitted+for+this+turn`);
+    }
+
+    await prisma.round.update({ where: { id: open.id }, data: { status: "CLOSED", closeAt: new Date() } });
+    const next = rounds.find((r) => r.number === (open.number + 1));
     if (next) await prisma.round.update({ where: { id: next.id }, data: { status: "OPEN", openAt: new Date() } });
+
+    revalidatePath(`/instances/${slug}`);
+    redirect(`/instances/${slug}?toast=success&message=Turn+advanced`);
   }
 
   if (action === "regress") {
     if (open) await prisma.round.update({ where: { id: open.id }, data: { status: "DRAFT" } });
     const prev = rounds.find((r) => r.number === ((open?.number ?? 2) - 1));
     if (prev) await prisma.round.update({ where: { id: prev.id }, data: { status: "OPEN", reopenedCount: { increment: 1 } } });
+
+    revalidatePath(`/instances/${slug}`);
+    redirect(`/instances/${slug}?toast=warning&message=Turn+regressed`);
   }
 
-  revalidatePath(`/instances/${slug}`);
+  redirect(`/instances/${slug}?toast=error&message=Invalid+turn+action`);
 }
 
-export default async function InstancePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function InstancePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ toast?: "success" | "error" | "warning"; message?: string }>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
   const instance = await prisma.gameInstance.findUnique({
     where: { slug },
     include: {
@@ -92,6 +119,7 @@ export default async function InstancePage({ params }: { params: Promise<{ slug:
   return (
     <main className="min-h-screen">
       <div className="app-shell">
+        {sp.toast && sp.message && <Toast kind={sp.toast} message={decodeURIComponent(sp.message).replaceAll("+", " ")} />}
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="page-title">{instance.title}</h1>

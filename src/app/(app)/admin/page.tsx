@@ -1,8 +1,10 @@
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { Sparkles, GitBranchPlus } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { StatusChip } from "@/components/status-chip";
+import { Toast } from "@/components/toast";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ async function createProfessor(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "").trim();
-  if (!name || !email || !password) return;
+  if (!name || !email || !password) redirect("/admin?toast=error&message=Missing+required+fields");
 
   await prisma.user.upsert({
     where: { email },
@@ -20,6 +22,7 @@ async function createProfessor(formData: FormData) {
   });
 
   revalidatePath("/admin");
+  redirect("/admin?toast=success&message=Professor+account+saved");
 }
 
 async function createGame(formData: FormData) {
@@ -28,10 +31,10 @@ async function createGame(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   const ownerEmail = String(formData.get("ownerEmail") || "").trim().toLowerCase();
   const gameTypeVersionId = String(formData.get("gameTypeVersionId") || "").trim();
-  if (!title || !slug || !ownerEmail || !gameTypeVersionId) return;
+  if (!title || !slug || !ownerEmail || !gameTypeVersionId) redirect("/admin?toast=error&message=Missing+required+fields");
 
   const owner = await prisma.user.findUnique({ where: { email: ownerEmail } });
-  if (!owner) return;
+  if (!owner) redirect("/admin?toast=error&message=Professor+email+not+found");
 
   const instance = await prisma.gameInstance.create({
     data: { title, slug, ownerId: owner.id, gameTypeVersionId, status: "DRAFT" },
@@ -52,9 +55,15 @@ async function createGame(formData: FormData) {
 
   await prisma.instanceSettings.create({ data: { gameInstanceId: instance.id } });
   revalidatePath("/admin");
+  redirect("/admin?toast=success&message=Game+created+and+linked+to+professor");
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ toast?: "success" | "error" | "warning"; message?: string }>;
+}) {
+  const sp = await searchParams;
   const gameTypes = await prisma.gameType.findMany({ include: { versions: true } });
   const professors = await prisma.user.findMany({ where: { systemRole: "USER" }, orderBy: { createdAt: "desc" }, take: 15 });
   const instances = await prisma.gameInstance.findMany({ include: { owner: true, gameTypeVersion: { include: { gameType: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
@@ -62,6 +71,7 @@ export default async function AdminPage() {
   return (
     <main className="min-h-screen">
       <div className="app-shell">
+        {sp.toast && sp.message && <Toast kind={sp.toast} message={decodeURIComponent(sp.message).replaceAll("+", " ")} />}
         <h1 className="page-title">Admin Console</h1>
         <p className="page-subtitle">Create professors, create games, and link professor ownership.</p>
 
