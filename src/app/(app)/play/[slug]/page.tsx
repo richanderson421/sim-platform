@@ -9,7 +9,8 @@ async function submitDecision(formData: FormData) {
   "use server";
   const slug = String(formData.get("slug") || "");
   const studentEmail = String(formData.get("studentEmail") || "").trim().toLowerCase();
-  if (!slug || !studentEmail) return;
+  const roundId = String(formData.get("roundId") || "");
+  if (!slug || !studentEmail || !roundId) return;
   const instance = await prisma.gameInstance.findUnique({ where: { slug }, include: { rounds: true, gameTypeVersion: true } });
   if (!instance) return;
 
@@ -19,8 +20,10 @@ async function submitDecision(formData: FormData) {
   const enrollment = await prisma.enrollment.findFirst({ where: { gameInstanceId: instance.id, userId: user.id, status: "APPROVED" } });
   if (!enrollment) return;
 
-  const openRound = instance.rounds.find((r) => r.status === "OPEN");
-  if (!openRound) return;
+  const openRound = await prisma.round.findFirst({ where: { id: roundId, gameInstanceId: instance.id, status: "OPEN" } });
+  if (!openRound) {
+    redirect(`/play/${slug}?student=${encodeURIComponent(studentEmail)}`);
+  }
 
   const roundDef = (instance.gameTypeVersion.configJson as { rounds: { roundNumber: number; fields: { key: string }[] }[] }).rounds.find((r) => r.roundNumber === openRound.number);
   if (!roundDef) return;
@@ -247,6 +250,7 @@ export default async function PlayPage({ params, searchParams }: { params: Promi
                   <form action={submitDecision} className="mt-3 grid gap-3 md:grid-cols-2">
                   <input type="hidden" name="slug" value={slug} />
                   <input type="hidden" name="studentEmail" value={studentEmail} />
+                  <input type="hidden" name="roundId" value={openRound.id} />
 
                   {currentDef.fields.map((f) => (
                     <div key={f.key} className="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
